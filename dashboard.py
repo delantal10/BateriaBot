@@ -718,8 +718,8 @@ def main():
         st.markdown(f"""
         <div style="text-align:center; padding: 1rem 0 0.6rem;">
             {logo_html}
-            <div style="margin-top:10px; background:#CC0000; border-radius:4px; padding:4px 0;">
-                <span style="font-size:0.65rem; color:white; font-weight:800; letter-spacing:0.18em;">BATERIABOT</span>
+            <div style="margin-top:8px;">
+                <span style="font-size:0.72rem; color:#CC0000; font-weight:900; letter-spacing:0.22em; font-family:'Arial Narrow','Arial',sans-serif; text-transform:uppercase;">BATERIABOT</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
