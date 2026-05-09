@@ -30,7 +30,7 @@ from supabase import create_client
 
 st.set_page_config(
     page_title="BateriaBot · ACA",
-    page_icon="🔋",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -166,10 +166,10 @@ def delta_emoji(pct):
     if pct is None or pd.isna(pct):
         return "—"
     if pct <= DELTA_COMPETITIVE:
-        return f"✅ {pct:+.1f}%"
+        return f"{pct:+.1f}%"
     if pct <= DELTA_WARNING:
-        return f"⚠️ {pct:+.1f}%"
-    return f"🔴 {pct:+.1f}%"
+        return f"{pct:+.1f}%"
+    return f"{pct:+.1f}%"
 
 
 # ── Supabase ──────────────────────────────────────────────────────────────────
@@ -308,7 +308,7 @@ def build_pivot(catalog: pd.DataFrame, listings: pd.DataFrame, aca: pd.DataFrame
 
 # ── Planilla de precios ACA (dialog) ─────────────────────────────────────────
 
-@st.dialog("💰 Precios ACA — Planilla completa", width="large")
+@st.dialog("Precios ACA — Planilla completa", width="large")
 def aca_price_dialog(catalog: pd.DataFrame, aca: pd.DataFrame, equiv: pd.DataFrame):
     st.caption("Editá los precios directamente en la tabla y hacé clic en Guardar cambios.")
 
@@ -375,7 +375,7 @@ def aca_price_dialog(catalog: pd.DataFrame, aca: pd.DataFrame, equiv: pd.DataFra
 
     col_save, col_cancel = st.columns([1, 3])
     with col_save:
-        if st.button("💾 Guardar cambios", type="primary", use_container_width=True):
+        if st.button("Guardar cambios", type="primary", use_container_width=True):
             sb  = get_supabase()
             now = datetime.now(timezone.utc).isoformat()
             # Reconstruir el id de catálogo para cada fila
@@ -413,7 +413,7 @@ def aca_price_dialog(catalog: pd.DataFrame, aca: pd.DataFrame, equiv: pd.DataFra
             if upserts:
                 sb.table("aca_prices").upsert(upserts, on_conflict="catalog_model_id").execute()
                 load_aca_prices.clear()
-                st.success(f"✅ {len(upserts)} precios guardados")
+                st.success(f"{len(upserts)} precios guardados")
                 st.rerun()
             else:
                 st.warning("No hay precios para guardar. Completá al menos un Precio Socio.")
@@ -436,7 +436,7 @@ def show_kpis(df: pd.DataFrame, last_run: str):
             st.metric(
                 "Posición ACA vs Mercado",
                 f"{avg_delta:+.1f}%",
-                delta=f"{'Competitivo ✅' if avg_delta <= DELTA_COMPETITIVE else 'Revisar ⚠️'}",
+                delta=f"{'Competitivo' if avg_delta <= DELTA_COMPETITIVE else 'Revisar'}",
                 delta_color="off",
                 help="Diferencia promedio entre precio ACA y el mínimo del mercado",
             )
@@ -466,7 +466,7 @@ def show_kpis(df: pd.DataFrame, last_run: str):
 # ── Tabla principal ───────────────────────────────────────────────────────────
 
 def show_table(df: pd.DataFrame):
-    st.subheader("📊 Comparativo de precios por modelo y canal")
+    st.subheader("Comparativo de precios por modelo y canal")
 
     src_cols   = [SOURCE_LABELS[s] for s in SOURCES if SOURCE_LABELS[s] in df.columns]
     show_cols  = (
@@ -501,14 +501,14 @@ def show_table(df: pd.DataFrame):
 
     # Leyenda
     st.caption(
-        "✅ ACA ≤5% sobre mercado  ·  ⚠️ ACA 5–15% sobre mercado  ·  🔴 ACA >15% sobre mercado  ·  — Sin datos"
+        "ACA ≤5% sobre mercado: Competitivo  ·  5–15%: Revisar  ·  >15%: Alto  ·  — Sin datos"
     )
 
 
 # ── Detalle por canal ─────────────────────────────────────────────────────────
 
 def show_channel_detail(listings: pd.DataFrame, catalog: pd.DataFrame):
-    with st.expander("🔍 Ver todas las ofertas activas por modelo", expanded=False):
+    with st.expander("Ver todas las ofertas activas por modelo", expanded=False):
         auto_ids = catalog[catalog["category"] == "auto"]["id"].tolist()
         df       = listings[listings["catalog_model_id"].isin(auto_ids)].copy()
 
@@ -531,7 +531,7 @@ def show_channel_detail(listings: pd.DataFrame, catalog: pd.DataFrame):
             else ("—"),
             axis=1,
         )
-        df["Envío gratis"] = df["free_shipping"].map({True: "✅", False: "—", None: "—"})
+        df["Envío gratis"] = df["free_shipping"].map({True: "Sí", False: "—", None: "—"})
 
         show = df[["Modelo", "Fuente", "Precio", "Cuotas", "Envío gratis", "Fecha"]].drop_duplicates()
         show = show.sort_values(["Modelo", "Fuente"])
@@ -541,7 +541,7 @@ def show_channel_detail(listings: pd.DataFrame, catalog: pd.DataFrame):
 # ── Evolución de precios ──────────────────────────────────────────────────────
 
 def show_evolution(listings: pd.DataFrame, catalog: pd.DataFrame):
-    st.subheader("📈 Evolución de precios")
+    st.subheader("Evolución de precios")
 
     auto     = catalog[catalog["category"] == "auto"].copy()
     auto["label"] = auto["brand"] + " " + auto["model_code"]
@@ -630,7 +630,7 @@ def show_evolution(listings: pd.DataFrame, catalog: pd.DataFrame):
 # ── Análisis Willard vs Moura ─────────────────────────────────────────────────
 
 def show_brand_comparison(df: pd.DataFrame):
-    st.subheader("⚖️ Willard vs Moura — diferencia de precio por par equivalente")
+    st.subheader("Willard vs Moura — diferencia de precio por par equivalente")
 
     pairs = df[df["Equivalente"] != "—"].copy()
     if pairs.empty:
@@ -719,7 +719,7 @@ def main():
         <div style="text-align:center; padding: 1rem 0 0.6rem;">
             {logo_html}
             <div style="margin-top:10px; background:#CC0000; border-radius:4px; padding:4px 0;">
-                <span style="font-size:0.65rem; color:white; font-weight:800; letter-spacing:0.18em;">🔋 BATERIABOT</span>
+                <span style="font-size:0.65rem; color:white; font-weight:800; letter-spacing:0.18em;">BATERIABOT</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -746,7 +746,7 @@ def main():
 
     # ── Botón ACA en sidebar ──────────────────────────────────────────────────
     st.sidebar.markdown("---")
-    if st.sidebar.button("💰 Cargar precios ACA", use_container_width=True, type="primary"):
+    if st.sidebar.button("Cargar precios ACA", use_container_width=True, type="primary"):
         aca_price_dialog(catalog, aca, equiv)
 
     # ── Filtrar catálogo ──────────────────────────────────────────────────────
