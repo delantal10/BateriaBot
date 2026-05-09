@@ -47,7 +47,27 @@ CHROME_PROFILE = os.path.expanduser(
 
 
 def _get_session_cookies() -> dict:
-    """Lee las cookies de sesión de ML desde Chrome Profile 1."""
+    """
+    Lee cookies de sesión de ML. Orden de prioridad:
+    1. Variables de entorno ML_COOKIE_* (Streamlit Cloud / servidor)
+    2. Chrome Profile 1 local (Mac con sesión activa)
+    """
+    # 1. Env vars (Streamlit secrets o .env)
+    env_ssid = os.environ.get("ML_COOKIE_SSID", "")
+    if env_ssid:
+        cookies = {
+            "ssid":              env_ssid,
+            "p_dsid":            os.environ.get("ML_COOKIE_P_DSID", ""),
+            "p_edsid":           os.environ.get("ML_COOKIE_P_EDSID", ""),
+            "x-meli-session-id": os.environ.get("ML_COOKIE_SESSION_ID", ""),
+            "dsid":              os.environ.get("ML_COOKIE_DSID", ""),
+            "edsid":             os.environ.get("ML_COOKIE_EDSID", ""),
+        }
+        cookies = {k: v for k, v in cookies.items() if v}
+        logger.info(f"[ML] Cookies cargadas desde variables de entorno ({len(cookies)} cookies)")
+        return cookies
+
+    # 2. Chrome local
     try:
         import browser_cookie3
         jar = browser_cookie3.chrome(
@@ -57,15 +77,30 @@ def _get_session_cookies() -> dict:
         cookies = {c.name: c.value for c in jar}
         if cookies.get("ssid"):
             logger.info(f"[ML] Cookies de Chrome cargadas ({len(cookies)} cookies, usuario: {cookies.get('orgnickp', '?')})")
-        else:
-            logger.warning("[ML] Cookies cargadas pero sin ssid — puede no estar logueado")
-        return cookies
+            return cookies
+        logger.warning("[ML] Chrome no tiene sesión activa de ML")
     except ImportError:
-        logger.error("[ML] browser_cookie3 no instalado: pip install browser-cookie3")
-        return {}
+        pass
     except Exception as e:
-        logger.error(f"[ML] Error leyendo cookies de Chrome: {e}")
-        return {}
+        logger.debug(f"[ML] Chrome no disponible: {e}")
+
+    logger.error(
+        "[ML] Sin cookies de sesión. Opciones:\n"
+        "  · Local: abrí ML en Chrome y volvé a correr\n"
+        "  · Nube:  corré 'python export_ml_cookies.py' y pegá en Streamlit secrets"
+    )
+    return {}
+
+
+def is_session_expired(html: str) -> bool:
+    """Detecta si la respuesta es una página de sesión vencida o captcha."""
+    if len(html) < 50_000:
+        return True
+    if "account-verification" in html or "micro-landing" in html[:2000]:
+        return True
+    if "_n.ctx.r=" not in html:
+        return True
+    return False
 
 
 async def run_all_searches() -> list[Listing]:
@@ -135,14 +170,21 @@ async def _fetch(client: httpx.AsyncClient, url: str) -> Optional[str]:
     for attempt in range(MAX_RETRIES):
         try:
             resp = await client.get(url)
-            if resp.status_code == 200 and len(resp.text) > 50000:
+            if resp.status_code == 200:
+                if is_session_expired(resp.text):
+                    logger.error(
+                        "[ML] Sesión vencida o captcha detectado. "
+                        "Abrí MercadoLibre en Chrome para renovar cookies, "
+                        "o actualizá ML_COOKIE_SSID en Streamlit secrets."
+                    )
+                    return None
                 return resp.text
             elif resp.status_code == 429:
                 wait = 2 ** (attempt + 1)
                 logger.warning(f"[ML] Rate limit, esperando {wait}s")
                 await asyncio.sleep(wait)
             else:
-                logger.warning(f"[ML] HTTP {resp.status_code} ({len(resp.text)} bytes) para {url}")
+                logger.warning(f"[ML] HTTP {resp.status_code} para {url}")
                 return None
         except httpx.RequestError as e:
             logger.warning(f"[ML] Error de red (intento {attempt + 1}): {e}")

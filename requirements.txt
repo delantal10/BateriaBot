@@ -6,3 +6,4 @@ supabase>=2.4
 streamlit>=1.32
 plotly>=5.18
 pandas>=2.0
+browser-cookie3>=0.19

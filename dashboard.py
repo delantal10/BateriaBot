@@ -785,6 +785,96 @@ def show_brand_comparison(df: pd.DataFrame):
     st.dataframe(summary, hide_index=True, use_container_width=True)
 
 
+# ── Scraper desde la web ──────────────────────────────────────────────────────
+
+@st.dialog("Correr scraper", width="large")
+def run_scraper_dialog():
+    st.caption("Scrapea todos los canales y sincroniza con Supabase. Tarda ~30 segundos.")
+
+    if not st.button("Iniciar", type="primary"):
+        return
+
+    import sys, asyncio
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent))
+
+    from database import init_db, save_run, finish_run, insert_listings
+    from matcher import classify_listings
+    from supabase_sync import run_sync
+    from config import DB_PATH
+    import tempfile
+
+    # Usar DB temporal en la nube, DB local si existe
+    db_path = DB_PATH if Path(DB_PATH).exists() else tempfile.mktemp(suffix=".db")
+    conn = init_db(db_path)
+
+    results = {}
+    started_at = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
+
+    status = st.status("Scrapeando...", expanded=True)
+
+    # ── MercadoLibre ─────────────────────────────────────────────────────────
+    with status:
+        st.write("MercadoLibre...")
+    from scraper import mercadolibre
+    run_id = save_run(conn, "mercadolibre")
+    try:
+        ml_listings = asyncio.run(mercadolibre.run_all_searches())
+        classify_listings(ml_listings)
+        n = insert_listings(conn, run_id, ml_listings)
+        finish_run(conn, run_id, "success", n)
+        results["MercadoLibre"] = (n, None)
+    except Exception as e:
+        finish_run(conn, run_id, "error", 0, str(e))
+        results["MercadoLibre"] = (0, str(e))
+
+    # ── Scrapers secundarios ──────────────────────────────────────────────────
+    from scraper.html_scrapers import (
+        scrape_bateriasdeautos, scrape_easy, scrape_fravega, scrape_norauto
+    )
+    secondary = [
+        ("bateriasdeautos", "Baterías de Autos", scrape_bateriasdeautos),
+        ("fravega",         "Fravega",           scrape_fravega),
+        ("norauto",         "Norauto",           scrape_norauto),
+        ("easy",            "Easy",              scrape_easy),
+    ]
+    for source_key, label, fn in secondary:
+        with status:
+            st.write(f"{label}...")
+        run_id = save_run(conn, source_key)
+        try:
+            listings = fn()
+            classify_listings(listings)
+            n = insert_listings(conn, run_id, listings)
+            finish_run(conn, run_id, "success", n)
+            results[label] = (n, None)
+        except Exception as e:
+            finish_run(conn, run_id, "error", 0, str(e))
+            results[label] = (0, str(e))
+
+    # ── Sync Supabase ─────────────────────────────────────────────────────────
+    with status:
+        st.write("Sincronizando con Supabase...")
+    run_sync(conn, since=started_at.isoformat())
+    conn.close()
+
+    status.update(label="Listo", state="complete", expanded=False)
+
+    # Resumen
+    total = sum(n for n, _ in results.values())
+    st.success(f"{total} registros nuevos guardados")
+    for label, (n, err) in results.items():
+        if err:
+            st.error(f"{label}: error — {err[:80]}")
+        else:
+            st.write(f"{label}: {n} nuevos")
+
+    # Refrescar caché del dashboard
+    load_listings.clear()
+    load_last_run.clear()
+    st.rerun()
+
+
 # ── App principal ─────────────────────────────────────────────────────────────
 
 def main():
@@ -820,10 +910,12 @@ def main():
     aca      = load_aca_prices()
     last_run = load_last_run()
 
-    # ── Botón ACA en sidebar ──────────────────────────────────────────────────
+    # ── Botones sidebar ───────────────────────────────────────────────────────
     st.sidebar.markdown("---")
     if st.sidebar.button("Cargar precios ACA", use_container_width=True, type="primary"):
         aca_price_dialog(catalog, aca, equiv)
+    if st.sidebar.button("Correr scraper ahora", use_container_width=True):
+        run_scraper_dialog()
 
     # ── Filtrar catálogo ──────────────────────────────────────────────────────
     filtered_cat = catalog[
