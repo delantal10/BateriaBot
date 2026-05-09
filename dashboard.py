@@ -155,6 +155,23 @@ SOURCES = list(SOURCE_LABELS.keys())
 DELTA_COMPETITIVE = 5    # % — verde: ACA está bien
 DELTA_WARNING     = 15   # % — amarillo: ACA está un poco alto
 
+# Ventas ejercicio 2025-2026 (unidades vendidas por ACA, fuente: planilla Excel)
+SALES_UNITS: dict[str, int] = {
+    "willard_ub730":  1384,
+    "willard_ub620":  1256,
+    "willard_ub840":   545,
+    "willard_ub740":   456,
+    "willard_ub450":   292,
+    "willard_ub920":    67,
+    "willard_ub710":    18,
+    "willard_ub325":    11,
+    "willard_ub980":     8,
+    "willard_ub930":     8,
+    "willard_ub1300":    7,
+    "willard_ub425":     4,
+    "willard_ub670":     2,
+}
+
 
 def fmt_ars(v):
     if pd.isna(v) or v is None:
@@ -298,10 +315,23 @@ def build_pivot(catalog: pd.DataFrame, listings: pd.DataFrame, aca: pd.DataFrame
     # Equivalente
     cat_code = catalog.set_index("id")["model_code"].to_dict()
     equiv_map = {}
+    equiv_id_map = {}
     for _, row in equiv.iterrows():
         equiv_map[row["model_id"]]            = cat_code.get(row["equivalent_model_id"], "")
         equiv_map[row["equivalent_model_id"]] = cat_code.get(row["model_id"], "")
+        equiv_id_map[row["model_id"]]            = row["equivalent_model_id"]
+        equiv_id_map[row["equivalent_model_id"]] = row["model_id"]
     df["Equivalente"] = df["id"].map(equiv_map).fillna("—")
+
+    # Ventas ACA — unidades del modelo propio o del equivalente Willard
+    def _sales(row_id):
+        direct = SALES_UNITS.get(row_id, 0)
+        if direct:
+            return direct
+        equiv_id = equiv_id_map.get(row_id, "")
+        return SALES_UNITS.get(equiv_id, 0)
+
+    df["Ventas"] = df["id"].apply(_sales)
 
     return df
 
@@ -465,24 +495,71 @@ def show_kpis(df: pd.DataFrame, last_run: str):
 
 # ── Tabla principal ───────────────────────────────────────────────────────────
 
+def show_top_sellers(df: pd.DataFrame):
+    top = (
+        df[df["Ventas"] > 0]
+        .sort_values("Ventas", ascending=False)
+        .head(5)
+    )
+    if top.empty:
+        return
+
+    st.subheader("Modelos más vendidos — Ej. 2025/2026")
+    cols = st.columns(len(top))
+    medals = ["1°", "2°", "3°", "4°", "5°"]
+    for i, (_, row) in enumerate(top.iterrows()):
+        with cols[i]:
+            pct = row["Ventas"] / top["Ventas"].iloc[0] * 100
+            bar = "█" * int(pct / 10) + "░" * (10 - int(pct / 10))
+            delta_txt = delta_emoji(row.get("Δ ACA %")) if pd.notna(row.get("Δ ACA %")) else "—"
+            st.markdown(f"""
+<div style="background:white;border-radius:12px;padding:1rem 1.2rem;
+            box-shadow:0 2px 12px rgba(0,0,0,0.08);border-left:5px solid #DA2F37;
+            font-family:sans-serif;">
+  <div style="font-size:0.7rem;font-weight:800;color:#DA2F37;letter-spacing:0.12em;">
+    {medals[i]}
+  </div>
+  <div style="font-size:1.1rem;font-weight:800;color:#1A1A1A;margin:4px 0 2px;">
+    {row["brand"]} {row["model_code"]}
+  </div>
+  <div style="font-size:0.78rem;color:#6B7280;">{int(row["capacity_ah"] or 0)} Ah · {row.get("Equivalente","—")}</div>
+  <div style="font-size:1.4rem;font-weight:900;color:#1A1A1A;margin:6px 0 2px;">
+    {int(row["Ventas"]):,} u
+  </div>
+  <div style="font-size:0.7rem;color:#DA2F37;letter-spacing:0.04em;font-family:monospace;">{bar}</div>
+  <div style="font-size:0.75rem;color:#6B7280;margin-top:4px;">ACA vs mkt: {delta_txt}</div>
+</div>
+""", unsafe_allow_html=True)
+
+
 def show_table(df: pd.DataFrame):
     st.subheader("Comparativo de precios por modelo y canal")
 
     src_cols   = [SOURCE_LABELS[s] for s in SOURCES if SOURCE_LABELS[s] in df.columns]
     show_cols  = (
-        ["brand", "model_code", "capacity_ah", "cca", "type", "Equivalente"]
+        ["Ventas", "brand", "model_code", "capacity_ah", "cca", "type", "Equivalente"]
         + src_cols
         + ["ACA Socio", "Mkt Mín", "Δ ACA %"]
     )
     show_cols  = [c for c in show_cols if c in df.columns]
-    display    = df[show_cols].copy().sort_values(["brand", "capacity_ah"])
-    display    = display.rename(columns={
-        "brand":       "Marca",
-        "model_code":  "Modelo",
-        "capacity_ah": "Ah",
-        "cca":         "CCA",
-        "type":        "Tipo",
-    })
+
+    # Ordenar: primero por ventas desc, luego por marca/Ah
+    display = (
+        df[show_cols].copy()
+        .sort_values(["Ventas", "brand", "capacity_ah"], ascending=[False, True, True])
+        .rename(columns={
+            "brand":       "Marca",
+            "model_code":  "Modelo",
+            "capacity_ah": "Ah",
+            "cca":         "CCA",
+            "type":        "Tipo",
+        })
+    )
+
+    # Ranking visual en columna Ventas (solo si tiene ventas)
+    def fmt_ventas(v):
+        return f"{int(v):,}" if v and v > 0 else "—"
+    display["Ventas"] = display["Ventas"].apply(fmt_ventas)
 
     # Formatear moneda
     for col in src_cols + ["ACA Socio", "Mkt Mín"]:
@@ -499,9 +576,8 @@ def show_table(df: pd.DataFrame):
 
     st.dataframe(display, use_container_width=True, height=520, hide_index=True)
 
-    # Leyenda
     st.caption(
-        "ACA ≤5% sobre mercado: Competitivo  ·  5–15%: Revisar  ·  >15%: Alto  ·  — Sin datos"
+        "ACA ≤5% sobre mercado: Competitivo  ·  5–15%: Revisar  ·  >15%: Alto  ·  — Sin datos  ·  Ventas: unidades ej. 2025/2026"
     )
 
 
@@ -778,6 +854,10 @@ def main():
 
     # ── KPIs ──────────────────────────────────────────────────────────────────
     show_kpis(df, last_run)
+    st.divider()
+
+    # ── Top vendidos ──────────────────────────────────────────────────────────
+    show_top_sellers(df)
     st.divider()
 
     # ── Tabla comparativa ─────────────────────────────────────────────────────
