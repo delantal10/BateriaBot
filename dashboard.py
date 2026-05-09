@@ -5,10 +5,20 @@ Correr con: streamlit run dashboard.py
 """
 
 import os
+import base64
+from pathlib import Path
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 load_dotenv()
+
+def _logo_b64() -> str:
+    logo = Path(__file__).parent / "assets" / "logo_aca.png"
+    if logo.exists():
+        return base64.b64encode(logo.read_bytes()).decode()
+    return ""
+
+LOGO_B64 = _logo_b64()
 
 import streamlit as st
 import pandas as pd
@@ -704,20 +714,11 @@ def show_brand_comparison(df: pd.DataFrame):
 def main():
     # ── Sidebar ───────────────────────────────────────────────────────────────
     with st.sidebar:
-        st.markdown("""
-        <div style="text-align:center; padding: 1.2rem 0 0.8rem;">
-            <svg viewBox="0 0 120 80" xmlns="http://www.w3.org/2000/svg" width="110" style="display:block;margin:0 auto 6px;">
-              <!-- Triángulo izquierdo -->
-              <polygon points="10,70 35,25 45,45 28,45 36,70" fill="#CC0000"/>
-              <!-- Triángulo central (invertido, hueco) -->
-              <polygon points="60,10 85,55 35,55" fill="#CC0000"/>
-              <polygon points="60,28 74,52 46,52" fill="#1A1A1A"/>
-              <!-- Triángulo derecho -->
-              <polygon points="110,70 85,25 75,45 92,45 84,70" fill="#CC0000"/>
-            </svg>
-            <div style="font-size:1.6rem; font-weight:900; color:#CC0000; letter-spacing:0.15em; line-height:1;">ACA</div>
-            <div style="font-size:0.6rem; color:#F5C200; font-weight:700; letter-spacing:0.2em; margin-top:2px;">AUTOMÓVIL CLUB ARGENTINO</div>
-            <div style="margin-top:8px; background:#CC0000; border-radius:4px; padding:3px 0;">
+        logo_html = f'<img src="data:image/png;base64,{LOGO_B64}" width="130" style="display:block;margin:0 auto;">' if LOGO_B64 else '<div style="font-size:1.6rem;font-weight:900;color:#CC0000;">ACA</div>'
+        st.markdown(f"""
+        <div style="text-align:center; padding: 1rem 0 0.6rem;">
+            {logo_html}
+            <div style="margin-top:10px; background:#CC0000; border-radius:4px; padding:4px 0;">
                 <span style="font-size:0.65rem; color:white; font-weight:800; letter-spacing:0.18em;">🔋 BATERIABOT</span>
             </div>
         </div>
@@ -758,14 +759,10 @@ def main():
     df = build_pivot(filtered_cat, listings, aca, equiv)
 
     # ── Header ────────────────────────────────────────────────────────────────
-    st.markdown("""
+    logo_header = f'<img src="data:image/png;base64,{LOGO_B64}" height="56" style="flex-shrink:0;filter:brightness(0) invert(1);">' if LOGO_B64 else ''
+    st.markdown(f"""
     <div class="aca-header">
-        <svg viewBox="0 0 80 56" xmlns="http://www.w3.org/2000/svg" width="64" style="flex-shrink:0;">
-          <polygon points="6,50 24,18 31,32 20,32 25,50" fill="white"/>
-          <polygon points="40,4 58,38 22,38" fill="white"/>
-          <polygon points="40,18 51,38 29,38" fill="#CC0000"/>
-          <polygon points="74,50 56,18 49,32 60,32 55,50" fill="white"/>
-        </svg>
+        {logo_header}
         <div>
             <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.2em;color:rgba(255,255,255,0.75);text-transform:uppercase;">Automóvil Club Argentino</div>
             <h1 style="margin:2px 0 0;">Comparativo de Baterías</h1>
