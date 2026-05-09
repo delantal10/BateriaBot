@@ -36,7 +36,7 @@ st.set_page_config(
 )
 
 # ── ACA brand colors ──
-# Rojo ACA:    #CC0000
+# Rojo ACA:    #DA2F37
 # Amarillo ACA:#F5C200
 # Fondo:       #F4F4F4
 # Card:        #FFFFFF
@@ -51,7 +51,7 @@ st.markdown("""
 /* ── Sidebar ── */
 section[data-testid="stSidebar"] {
     background: #1A1A1A !important;
-    border-right: 3px solid #CC0000;
+    border-right: 3px solid #DA2F37;
 }
 section[data-testid="stSidebar"] * { color: #F4F4F4 !important; }
 section[data-testid="stSidebar"] .stSelectbox label,
@@ -62,7 +62,7 @@ section[data-testid="stSidebar"] hr { border-color: #333; }
 div[data-testid="metric-container"] {
     background: #FFFFFF;
     border: none;
-    border-left: 5px solid #CC0000;
+    border-left: 5px solid #DA2F37;
     border-radius: 12px;
     padding: 1.2rem 1.4rem;
     box-shadow: 0 2px 12px rgba(0,0,0,0.08);
@@ -80,13 +80,13 @@ div[data-testid="stDataFrame"] {
 }
 
 /* ── Títulos y texto principal ── */
-h1 { color: #CC0000 !important; font-weight: 800 !important; }
+h1 { color: #DA2F37 !important; font-weight: 800 !important; }
 h2, h3 { color: #1A1A1A !important; font-weight: 700 !important; }
 p, li, label { color: #1A1A1A !important; }
 
 /* ── Botones ── */
 div[data-testid="stFormSubmitButton"] > button {
-    background: #CC0000 !important;
+    background: #DA2F37 !important;
     color: white !important;
     border: none !important;
     border-radius: 8px !important;
@@ -94,15 +94,15 @@ div[data-testid="stFormSubmitButton"] > button {
     letter-spacing: 0.03em;
 }
 div[data-testid="stFormSubmitButton"] > button:hover {
-    background: #A30000 !important;
+    background: #B02028 !important;
 }
 
 /* ── Multiselect y sliders ── */
 div[data-testid="stMultiSelect"] span[data-baseweb="tag"] {
-    background: #CC0000 !important;
+    background: #DA2F37 !important;
     color: white !important;
 }
-div[data-testid="stSlider"] div[role="slider"] { background: #CC0000 !important; }
+div[data-testid="stSlider"] div[role="slider"] { background: #DA2F37 !important; }
 
 /* ── Expander ── */
 details { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 0.5rem; }
@@ -115,7 +115,7 @@ div[data-testid="stCaptionContainer"] { color: #6B7280 !important; }
 
 /* ── Header strip con logo ACA ── */
 .aca-header {
-    background: linear-gradient(135deg, #CC0000 60%, #A30000 100%);
+    background: linear-gradient(135deg, #DA2F37 60%, #B02028 100%);
     color: white;
     padding: 1.2rem 2rem;
     border-radius: 14px;
@@ -597,7 +597,7 @@ def show_evolution(listings: pd.DataFrame, catalog: pd.DataFrame):
         return
 
     ACA_PALETTE = [
-        "#CC0000", "#F5C200", "#1A1A1A", "#E87000",
+        "#DA2F37", "#F5C200", "#1A1A1A", "#E87000",
         "#007ACC", "#6B7280", "#2D6A4F", "#9B2226",
     ]
 
@@ -672,7 +672,7 @@ def show_brand_comparison(df: pd.DataFrame):
 
     cmp_df = pd.DataFrame(rows).sort_values(["Ah", "Fuente"])
 
-    ACA_PALETTE = ["#CC0000", "#F5C200", "#1A1A1A", "#E87000", "#007ACC", "#6B7280"]
+    ACA_PALETTE = ["#DA2F37", "#F5C200", "#1A1A1A", "#E87000", "#007ACC", "#6B7280"]
 
     fig = px.bar(
         cmp_df,
@@ -685,7 +685,7 @@ def show_brand_comparison(df: pd.DataFrame):
         title="% de diferencia de precio (negativo = Moura más barata)",
         color_discrete_sequence=ACA_PALETTE,
     )
-    fig.add_hline(y=0, line_dash="dot", line_color="#CC0000", line_width=1.5)
+    fig.add_hline(y=0, line_dash="dot", line_color="#DA2F37", line_width=1.5)
     fig.update_layout(
         height=380,
         margin=dict(l=0, r=0, t=40, b=0),
@@ -714,12 +714,12 @@ def show_brand_comparison(df: pd.DataFrame):
 def main():
     # ── Sidebar ───────────────────────────────────────────────────────────────
     with st.sidebar:
-        logo_html = f'<img src="data:image/png;base64,{LOGO_B64}" width="130" style="display:block;margin:0 auto;">' if LOGO_B64 else '<div style="font-size:1.6rem;font-weight:900;color:#CC0000;">ACA</div>'
+        logo_html = f'<img src="data:image/png;base64,{LOGO_B64}" width="130" style="display:block;margin:0 auto;">' if LOGO_B64 else '<div style="font-size:1.6rem;font-weight:900;color:#DA2F37;">ACA</div>'
         st.markdown(f"""
         <div style="text-align:center; padding: 1rem 0 0.6rem;">
             {logo_html}
             <div style="margin-top:8px;">
-                <span style="font-size:0.72rem; color:#CC0000; font-weight:900; letter-spacing:0.22em; font-family:'Arial Narrow','Arial',sans-serif; text-transform:uppercase;">BATERIABOT</span>
+                <span style="font-size:0.72rem; color:#DA2F37; font-weight:900; letter-spacing:0.22em; font-family:'Arial Narrow','Arial',sans-serif; text-transform:uppercase;">BATERIABOT</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
