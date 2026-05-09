@@ -705,10 +705,21 @@ def main():
     # ── Sidebar ───────────────────────────────────────────────────────────────
     with st.sidebar:
         st.markdown("""
-        <div style="text-align:center; padding: 1rem 0 0.5rem;">
-            <div style="font-size:2.5rem;">🔺</div>
-            <div style="font-size:1.4rem; font-weight:900; color:#CC0000; letter-spacing:0.1em;">ACA</div>
-            <div style="font-size:0.75rem; color:#F5C200; font-weight:600; letter-spacing:0.08em;">BATERIABOT</div>
+        <div style="text-align:center; padding: 1.2rem 0 0.8rem;">
+            <svg viewBox="0 0 120 80" xmlns="http://www.w3.org/2000/svg" width="110" style="display:block;margin:0 auto 6px;">
+              <!-- Triángulo izquierdo -->
+              <polygon points="10,70 35,25 45,45 28,45 36,70" fill="#CC0000"/>
+              <!-- Triángulo central (invertido, hueco) -->
+              <polygon points="60,10 85,55 35,55" fill="#CC0000"/>
+              <polygon points="60,28 74,52 46,52" fill="#1A1A1A"/>
+              <!-- Triángulo derecho -->
+              <polygon points="110,70 85,25 75,45 92,45 84,70" fill="#CC0000"/>
+            </svg>
+            <div style="font-size:1.6rem; font-weight:900; color:#CC0000; letter-spacing:0.15em; line-height:1;">ACA</div>
+            <div style="font-size:0.6rem; color:#F5C200; font-weight:700; letter-spacing:0.2em; margin-top:2px;">AUTOMÓVIL CLUB ARGENTINO</div>
+            <div style="margin-top:8px; background:#CC0000; border-radius:4px; padding:3px 0;">
+                <span style="font-size:0.65rem; color:white; font-weight:800; letter-spacing:0.18em;">🔋 BATERIABOT</span>
+            </div>
         </div>
         """, unsafe_allow_html=True)
         st.markdown("---")
@@ -749,12 +760,18 @@ def main():
     # ── Header ────────────────────────────────────────────────────────────────
     st.markdown("""
     <div class="aca-header">
-        <div class="aca-logo">🔋</div>
+        <svg viewBox="0 0 80 56" xmlns="http://www.w3.org/2000/svg" width="64" style="flex-shrink:0;">
+          <polygon points="6,50 24,18 31,32 20,32 25,50" fill="white"/>
+          <polygon points="40,4 58,38 22,38" fill="white"/>
+          <polygon points="40,18 51,38 29,38" fill="#CC0000"/>
+          <polygon points="74,50 56,18 49,32 60,32 55,50" fill="white"/>
+        </svg>
         <div>
-            <h1>Comparativo de Precios de Baterías</h1>
-            <div class="subtitle">Monitoreo semanal de mercado · Willard · Moura</div>
+            <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.2em;color:rgba(255,255,255,0.75);text-transform:uppercase;">Automóvil Club Argentino</div>
+            <h1 style="margin:2px 0 0;">Comparativo de Baterías</h1>
+            <div class="subtitle">Monitoreo semanal · Willard · Moura · Mercado</div>
         </div>
-        <div class="aca-badge">ACA INTERNO</div>
+        <div class="aca-badge">INTERNO</div>
     </div>
     """, unsafe_allow_html=True)
 
