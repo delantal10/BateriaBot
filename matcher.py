@@ -61,6 +61,20 @@ def extract_cca(text: str) -> Optional[int]:
     return None
 
 
+# ── Marcas que NO son Willard/Moura/Unibat ────────────────────────────────────
+# Títulos de estas marcas mencionan códigos UB/Moura como "equivalente a",
+# lo que genera falsos positivos en el matcher.
+
+_BLOCKED_BRANDS = {
+    "PRESTOLITE", "BOSCH", "VARTA", "YUASA", "BANNER", "TUDOR",
+    "EXIDE", "DELPHI", "ACDELCO", "OPTIMA", "CENTURY", "ATLAS",
+    "REXMONT", "ELECSUR", "DELKOR", "INTACT",
+}
+
+def _has_blocked_brand(title_up: str) -> bool:
+    return any(b in title_up for b in _BLOCKED_BRANDS)
+
+
 # ── Patrones de modelo explícito ──────────────────────────────────────────────
 
 _RE_UB        = re.compile(r"\bUB[\s\-]?(\d{3,4})\b", re.IGNORECASE)
@@ -147,6 +161,10 @@ def match_model(
     capacity_ah y cca pueden venir del listing (atributos ML) o se extraen del título.
     """
     title_up = title.upper()
+
+    # Rechazar listings de marcas que mencionan códigos Willard/Moura como equivalentes
+    if _has_blocked_brand(title_up):
+        return None
 
     # Completar specs desde el título si no vienen en los atributos
     ah  = capacity_ah or extract_ah(title)

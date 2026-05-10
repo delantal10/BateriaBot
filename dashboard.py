@@ -84,7 +84,7 @@ h1 { color: #DA2F37 !important; font-weight: 800 !important; }
 h2, h3 { color: #1A1A1A !important; font-weight: 700 !important; }
 p, li, label { color: #1A1A1A !important; }
 
-/* ── Botones ── */
+/* ── Botones (form submit) ── */
 div[data-testid="stFormSubmitButton"] > button {
     background: #DA2F37 !important;
     color: white !important;
@@ -95,6 +95,21 @@ div[data-testid="stFormSubmitButton"] > button {
 }
 div[data-testid="stFormSubmitButton"] > button:hover {
     background: #B02028 !important;
+}
+
+/* ── Botones sidebar — ambos en gris oscuro ── */
+section[data-testid="stSidebar"] button[data-testid="baseButton-primary"],
+section[data-testid="stSidebar"] button[data-testid="baseButton-secondary"] {
+    background: #3D3D3D !important;
+    color: #F4F4F4 !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+}
+section[data-testid="stSidebar"] button[data-testid="baseButton-primary"]:hover,
+section[data-testid="stSidebar"] button[data-testid="baseButton-secondary"]:hover {
+    background: #555555 !important;
+    color: white !important;
 }
 
 /* ── Multiselect y sliders ── */
@@ -285,11 +300,15 @@ def build_pivot(catalog: pd.DataFrame, listings: pd.DataFrame, aca: pd.DataFrame
         .reset_index()
     )
 
-    pivot = latest.pivot(index="catalog_model_id", columns="source", values="price")
-    pivot.columns = [SOURCE_LABELS.get(c, c) for c in pivot.columns]
-    pivot = pivot.reset_index().rename(columns={"catalog_model_id": "id"})
+    price_pivot = latest.pivot(index="catalog_model_id", columns="source", values="price")
+    price_pivot.columns = [SOURCE_LABELS.get(c, c) for c in price_pivot.columns]
+    price_pivot = price_pivot.reset_index().rename(columns={"catalog_model_id": "id"})
 
-    df = catalog.merge(pivot, on="id", how="left")
+    url_pivot = latest.pivot(index="catalog_model_id", columns="source", values="url")
+    url_pivot.columns = [SOURCE_LABELS.get(c, c) + "_url" for c in url_pivot.columns]
+    url_pivot = url_pivot.reset_index().rename(columns={"catalog_model_id": "id"})
+
+    df = catalog.merge(price_pivot, on="id", how="left").merge(url_pivot, on="id", how="left")
 
     # Precio ACA
     if not aca.empty:
@@ -535,13 +554,23 @@ def show_top_sellers(df: pd.DataFrame):
 def show_table(df: pd.DataFrame):
     st.subheader("Comparativo de precios por modelo y canal")
 
-    src_cols   = [SOURCE_LABELS[s] for s in SOURCES if SOURCE_LABELS[s] in df.columns]
-    show_cols  = (
+    src_cols = [SOURCE_LABELS[s] for s in SOURCES if SOURCE_LABELS[s] in df.columns]
+
+    # Insertar columna de link ML después del precio ML
+    ml_label  = SOURCE_LABELS["mercadolibre"]
+    ml_url_col = f"{ml_label}_url"
+    src_with_links = []
+    for label in src_cols:
+        src_with_links.append(label)
+        if label == ml_label and ml_url_col in df.columns:
+            src_with_links.append(ml_url_col)
+
+    show_cols = (
         ["Ventas", "brand", "model_code", "capacity_ah", "cca", "type", "Equivalente"]
-        + src_cols
+        + src_with_links
         + ["ACA Socio", "Mkt Mín", "Δ ACA %"]
     )
-    show_cols  = [c for c in show_cols if c in df.columns]
+    show_cols = [c for c in show_cols if c in df.columns]
 
     # Ordenar: primero por ventas desc, luego por marca/Ah
     display = (
@@ -553,6 +582,7 @@ def show_table(df: pd.DataFrame):
             "capacity_ah": "Ah",
             "cca":         "CCA",
             "type":        "Tipo",
+            ml_url_col:    "Ver ML",
         })
     )
 
@@ -561,7 +591,7 @@ def show_table(df: pd.DataFrame):
         return f"{int(v):,}" if v and v > 0 else "—"
     display["Ventas"] = display["Ventas"].apply(fmt_ventas)
 
-    # Formatear moneda
+    # Formatear moneda (no aplicar a columnas URL)
     for col in src_cols + ["ACA Socio", "Mkt Mín"]:
         if col in display.columns:
             display[col] = display[col].apply(fmt_ars)
@@ -574,7 +604,16 @@ def show_table(df: pd.DataFrame):
     if "Tipo" in display.columns:
         display["Tipo"] = display["Tipo"].map({"standard": "Estándar", "agm": "AGM", "efb": "EFB"}).fillna("—")
 
-    st.dataframe(display, use_container_width=True, height=520, hide_index=True)
+    col_config = {}
+    if "Ver ML" in display.columns:
+        col_config["Ver ML"] = st.column_config.LinkColumn(
+            "Ver ML",
+            display_text="Ver",
+            help="Abrir publicación en MercadoLibre (nueva pestaña)",
+            width="small",
+        )
+
+    st.dataframe(display, use_container_width=True, height=520, hide_index=True, column_config=col_config)
 
     st.caption(
         "ACA ≤5% sobre mercado: Competitivo  ·  5–15%: Revisar  ·  >15%: Alto  ·  — Sin datos  ·  Ventas: unidades ej. 2025/2026"
