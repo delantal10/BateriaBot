@@ -292,13 +292,10 @@ def build_pivot(catalog: pd.DataFrame, listings: pd.DataFrame, aca: pd.DataFrame
         return pd.DataFrame()
 
     # Precio mínimo más reciente por modelo × fuente
-    latest = (
-        listings
-        .sort_values("scraped_at", ascending=False)
-        .groupby(["catalog_model_id", "source"])
-        .agg(price=("price", "min"), url=("url", "first"))
-        .reset_index()
-    )
+    # Tomamos la URL del listing con precio mínimo (no un "first" aleatorio)
+    recent = listings.sort_values("scraped_at", ascending=False)
+    idx_min = recent.groupby(["catalog_model_id", "source"])["price"].idxmin()
+    latest = recent.loc[idx_min, ["catalog_model_id", "source", "price", "url"]].reset_index(drop=True)
 
     price_pivot = latest.pivot(index="catalog_model_id", columns="source", values="price")
     price_pivot.columns = [SOURCE_LABELS.get(c, c) for c in price_pivot.columns]
