@@ -97,19 +97,23 @@ div[data-testid="stFormSubmitButton"] > button:hover {
     background: #B02028 !important;
 }
 
-/* ── Botones sidebar — ambos en rojo ACA ── */
-section[data-testid="stSidebar"] button[data-testid="baseButton-primary"],
-section[data-testid="stSidebar"] button[data-testid="baseButton-secondary"] {
-    background: #DA2F37 !important;
+/* ── Botones sidebar — ambos en rojo ACA (todos los estados) ── */
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button,
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button:focus,
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button:active,
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button:visited {
+    background-color: #DA2F37 !important;
     color: white !important;
     border: none !important;
     border-radius: 8px !important;
     font-weight: 700 !important;
+    box-shadow: none !important;
 }
-section[data-testid="stSidebar"] button[data-testid="baseButton-primary"]:hover,
-section[data-testid="stSidebar"] button[data-testid="baseButton-secondary"]:hover {
-    background: #B02028 !important;
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover {
+    background-color: #B02028 !important;
     color: white !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 /* ── Multiselect y sliders ── */
@@ -810,6 +814,129 @@ def show_brand_comparison(df: pd.DataFrame):
     st.dataframe(summary, hide_index=True, use_container_width=True)
 
 
+# ── Análisis ACA vs Mercado ───────────────────────────────────────────────────
+
+def show_aca_gap_ranking(df: pd.DataFrame):
+    """Barras horizontales ordenadas por Δ ACA %, coloreadas por zona."""
+    ranked = df.dropna(subset=["Δ ACA %"]).copy()
+    if ranked.empty:
+        st.info("Sin precios ACA para comparar.")
+        return
+
+    ranked["label"] = ranked["brand"] + " " + ranked["model_code"]
+    ranked = ranked.sort_values("Δ ACA %", ascending=True)
+
+    colors = [
+        "#DA2F37" if v > DELTA_WARNING
+        else "#E87000" if v > DELTA_COMPETITIVE
+        else "#2D6A4F"
+        for v in ranked["Δ ACA %"]
+    ]
+
+    fig = go.Figure(go.Bar(
+        x=ranked["Δ ACA %"],
+        y=ranked["label"],
+        orientation="h",
+        marker_color=colors,
+        text=[f"{v:+.1f}%" for v in ranked["Δ ACA %"]],
+        textposition="outside",
+        hovertemplate="<b>%{y}</b><br>Δ ACA: %{x:+.1f}%<extra></extra>",
+    ))
+
+    fig.add_vline(x=0,               line_color="#1A1A1A", line_width=1.5)
+    fig.add_vline(x=DELTA_COMPETITIVE, line_dash="dot", line_color="#2D6A4F",  line_width=1)
+    fig.add_vline(x=DELTA_WARNING,     line_dash="dot", line_color="#DA2F37",  line_width=1)
+
+    fig.update_layout(
+        height=max(320, len(ranked) * 30),
+        margin=dict(l=0, r=70, t=10, b=0),
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        xaxis=dict(
+            title="Diferencia % ACA vs precio mínimo de mercado",
+            gridcolor="#F0F0F0",
+            ticksuffix="%",
+        ),
+        yaxis=dict(gridcolor="#F0F0F0"),
+        font=dict(family="sans-serif", color="#1A1A1A"),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption("Verde ≤5%: competitivo  ·  Naranja 5–15%: revisar  ·  Rojo >15%: alto")
+
+
+def show_aca_bubble(df: pd.DataFrame):
+    """Bubble chart: Δ% vs precio ACA, tamaño = unidades vendidas."""
+    bubble = df.dropna(subset=["Δ ACA %", "ACA Socio"]).copy()
+    if bubble.empty:
+        st.info("Sin datos suficientes.")
+        return
+
+    bubble["label"]   = bubble["brand"] + " " + bubble["model_code"]
+    bubble["ventas_n"] = bubble["Ventas"].apply(
+        lambda v: int(v) if isinstance(v, (int, float)) and not pd.isna(v) and v > 0 else 0
+    )
+    # Tamaño mínimo para que todos los modelos sean visibles
+    bubble["size"] = bubble["ventas_n"].apply(lambda v: max(v, 30))
+
+    bubble["zona"] = bubble["Δ ACA %"].apply(
+        lambda v: "Alto (>15%)" if v > DELTA_WARNING
+        else "Revisar (5–15%)" if v > DELTA_COMPETITIVE
+        else "Competitivo (≤5%)"
+    )
+    color_map = {
+        "Competitivo (≤5%)":  "#2D6A4F",
+        "Revisar (5–15%)":    "#E87000",
+        "Alto (>15%)":        "#DA2F37",
+    }
+
+    fig = px.scatter(
+        bubble,
+        x="Δ ACA %",
+        y="ACA Socio",
+        size="size",
+        size_max=55,
+        color="zona",
+        color_discrete_map=color_map,
+        text="label",
+        template="plotly_white",
+        labels={
+            "Δ ACA %":  "Diferencia % vs mercado",
+            "ACA Socio": "Precio ACA Socio ($ARS)",
+            "zona":      "Zona",
+        },
+        hover_data={"ventas_n": True, "size": False, "label": False},
+        custom_data=["label", "ventas_n"],
+    )
+
+    fig.update_traces(
+        textposition="top center",
+        textfont=dict(size=10, color="#1A1A1A"),
+        hovertemplate=(
+            "<b>%{customdata[0]}</b><br>"
+            "Δ ACA: %{x:+.1f}%<br>"
+            "Precio ACA: $%{y:,.0f}<br>"
+            "Ventas: %{customdata[1]:,} u<extra></extra>"
+        ),
+    )
+    fig.add_vline(x=0,               line_color="#1A1A1A", line_width=1, line_dash="solid")
+    fig.add_vline(x=DELTA_COMPETITIVE, line_color="#2D6A4F", line_width=1, line_dash="dot")
+    fig.add_vline(x=DELTA_WARNING,     line_color="#DA2F37", line_width=1, line_dash="dot")
+
+    fig.update_layout(
+        height=480,
+        margin=dict(l=0, r=0, t=20, b=0),
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        yaxis_tickformat="$,.0f",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, font_size=11),
+        font=dict(family="sans-serif", color="#1A1A1A"),
+    )
+    fig.update_xaxes(gridcolor="#F0F0F0", ticksuffix="%")
+    fig.update_yaxes(gridcolor="#F0F0F0")
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption("Tamaño de burbuja = unidades vendidas ej. 2025/2026. Modelos sin datos de ventas aparecen con tamaño mínimo.")
+
+
 # ── Scraper desde la web ──────────────────────────────────────────────────────
 
 @st.dialog("Correr scraper", width="large")
@@ -980,6 +1107,17 @@ def main():
     # ── Tabla comparativa ─────────────────────────────────────────────────────
     show_table(df)
     show_channel_detail(listings, filtered_cat)
+    st.divider()
+
+    # ── Análisis ACA vs Mercado ───────────────────────────────────────────────
+    st.subheader("Análisis ACA vs mercado")
+    col_rank, col_bubble = st.columns([1, 1])
+    with col_rank:
+        st.markdown("**Ranking por diferencia de precio**")
+        show_aca_gap_ranking(df)
+    with col_bubble:
+        st.markdown("**Prioridad de revisión — impacto × volumen**")
+        show_aca_bubble(df)
     st.divider()
 
     # ── Evolución histórica ───────────────────────────────────────────────────
