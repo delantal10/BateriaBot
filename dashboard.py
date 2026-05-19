@@ -97,18 +97,18 @@ div[data-testid="stFormSubmitButton"] > button:hover {
     background: #B02028 !important;
 }
 
-/* ── Botones sidebar — ambos en gris oscuro ── */
+/* ── Botones sidebar — ambos en rojo ACA ── */
 section[data-testid="stSidebar"] button[data-testid="baseButton-primary"],
 section[data-testid="stSidebar"] button[data-testid="baseButton-secondary"] {
-    background: #3D3D3D !important;
-    color: #F4F4F4 !important;
+    background: #DA2F37 !important;
+    color: white !important;
     border: none !important;
     border-radius: 8px !important;
     font-weight: 700 !important;
 }
 section[data-testid="stSidebar"] button[data-testid="baseButton-primary"]:hover,
 section[data-testid="stSidebar"] button[data-testid="baseButton-secondary"]:hover {
-    background: #555555 !important;
+    background: #B02028 !important;
     color: white !important;
 }
 
