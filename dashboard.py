@@ -758,6 +758,7 @@ def show_brand_comparison(df: pd.DataFrame):
             continue
         m = m_row.iloc[0]
 
+        # Fuentes de mercado
         for src in src_cols:
             wp = w.get(src)
             mp = m.get(src)
@@ -771,13 +772,33 @@ def show_brand_comparison(df: pd.DataFrame):
                     "Dif. %": (mp - wp) / wp * 100,
                 })
 
+        # ACA Socio — incluir si ambos modelos tienen precio ACA
+        wp_aca = w.get("ACA Socio")
+        mp_aca = m.get("ACA Socio")
+        if pd.notna(wp_aca) and pd.notna(mp_aca) and wp_aca > 0:
+            rows.append({
+                "Par": f"{w['model_code']} / {m['model_code']}",
+                "Fuente": "ACA Socio",
+                "Ah": w["capacity_ah"],
+                "Willard ($)": wp_aca,
+                "Moura ($)": mp_aca,
+                "Dif. %": (mp_aca - wp_aca) / wp_aca * 100,
+            })
+
     if not rows:
         st.info("No hay suficientes precios coincidentes entre pares.")
         return
 
     cmp_df = pd.DataFrame(rows).sort_values(["Ah", "Fuente"])
 
-    ACA_PALETTE = ["#DA2F37", "#F5C200", "#1A1A1A", "#E87000", "#007ACC", "#6B7280"]
+    # ACA Socio resaltado en rojo, resto en paleta estándar
+    all_sources = cmp_df["Fuente"].unique().tolist()
+    palette_base = ["#6B7280", "#F5C200", "#1A1A1A", "#E87000", "#007ACC", "#2D6A4F"]
+    color_map = {
+        src: (palette_base[i % len(palette_base)] if src != "ACA Socio" else "#DA2F37")
+        for i, src in enumerate(s for s in all_sources if s != "ACA Socio")
+    }
+    color_map["ACA Socio"] = "#DA2F37"
 
     fig = px.bar(
         cmp_df,
@@ -787,30 +808,39 @@ def show_brand_comparison(df: pd.DataFrame):
         barmode="group",
         template="plotly_white",
         labels={"Dif. %": "Diferencia Moura vs Willard (%)", "Par": "Par equivalente"},
-        title="% de diferencia de precio (negativo = Moura más barata)",
-        color_discrete_sequence=ACA_PALETTE,
+        title="% de diferencia de precio por par equivalente (negativo = Moura más barata)",
+        color_discrete_map=color_map,
+        hover_data={"Willard ($)": ":,.0f", "Moura ($)": ":,.0f"},
     )
-    fig.add_hline(y=0, line_dash="dot", line_color="#DA2F37", line_width=1.5)
+    fig.add_hline(y=0, line_dash="dot", line_color="#1A1A1A", line_width=1.5)
     fig.update_layout(
-        height=380,
+        height=400,
         margin=dict(l=0, r=0, t=40, b=0),
         plot_bgcolor="white",
         paper_bgcolor="white",
         font=dict(family="sans-serif", color="#1A1A1A"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, font_size=11),
     )
     fig.update_xaxes(gridcolor="#F0F0F0")
-    fig.update_yaxes(gridcolor="#F0F0F0")
+    fig.update_yaxes(gridcolor="#F0F0F0", ticksuffix="%")
     st.plotly_chart(fig, use_container_width=True)
 
-    # Tabla resumen
+    # Tabla resumen con ACA separado
+    mkt_df  = cmp_df[cmp_df["Fuente"] != "ACA Socio"]
+    aca_df  = cmp_df[cmp_df["Fuente"] == "ACA Socio"][["Par", "Dif. %"]].rename(columns={"Dif. %": "Dif. ACA %"})
+
     summary = (
-        cmp_df.groupby("Par")
-        .agg(Ah=("Ah", "first"), Dif_prom=("Dif. %", "mean"))
+        mkt_df.groupby("Par")
+        .agg(Ah=("Ah", "first"), Dif_mkt=("Dif. %", "mean"))
         .reset_index()
-        .rename(columns={"Dif_prom": "Dif. promedio %"})
+        .rename(columns={"Dif_mkt": "Dif. mercado prom. %"})
+        .merge(aca_df, on="Par", how="left")
         .sort_values("Ah")
     )
-    summary["Dif. promedio %"] = summary["Dif. promedio %"].apply(lambda x: f"{x:+.1f}%")
+    summary["Dif. mercado prom. %"] = summary["Dif. mercado prom. %"].apply(lambda x: f"{x:+.1f}%")
+    summary["Dif. ACA %"]           = summary["Dif. ACA %"].apply(
+        lambda x: f"{x:+.1f}%" if pd.notna(x) else "—"
+    )
     st.dataframe(summary, hide_index=True, use_container_width=True)
 
 
