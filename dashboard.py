@@ -427,17 +427,6 @@ def aca_price_dialog(catalog: pd.DataFrame, aca: pd.DataFrame, equiv: pd.DataFra
         if st.button("Guardar cambios", type="primary", use_container_width=True):
             sb  = get_supabase()
             now = datetime.now(timezone.utc).isoformat()
-            # Reconstruir el id de catálogo para cada fila
-            id_map = auto_cat.set_index(
-                auto_cat["Marca"].values if "Marca" in auto_cat.columns
-                else auto_cat["brand"].values
-            )
-            # Usar el dataframe original para mapear modelo → id
-            model_id_map = dict(zip(
-                auto_cat["brand"] + "|" + auto_cat["model_code"],
-                auto_cat["id"] if "id" in auto_cat.columns else []
-            ))
-            # Reconstruir desde catalog
             cat_id_map = dict(zip(
                 catalog["brand"] + "|" + catalog["model_code"],
                 catalog["id"]
